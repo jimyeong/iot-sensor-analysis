@@ -14,9 +14,10 @@ It started with a practical problem: mould forming in my bathroom. I wanted to u
 
 **Living room** — BME680 sensor (temperature, humidity, pressure, gas resistance).
 
-<img src="images/image1.jpg" width="500"/>
-<img src="images/image2.jpg" width="500"/>
-
+<p align="center">
+  <img src="images/image1.jpg" width="45%" />
+  <img src="images/image2.jpg" width="45%" />
+</p>
 ---
 
 ## Notebooks
@@ -61,10 +62,10 @@ iot-sensor-analysis/
 │   ├── cooking_vs_idle.png
 │   └── livingroom.png
 └── data/
-    ├── sample_humid_temp.csv
-    ├── sample_kitchen.csv
-    ├── sample_livingroom.csv
-    └── sample_events.csv
+    ├── sample_bathroom_data.csv
+    ├── sample_events/data.csv
+    ├── sample_kitchen_data.csv
+    └── sample_livingroom_data.csv
 ```
 
 Full datasets available on request.
