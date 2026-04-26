@@ -108,4 +108,3 @@ Full datasets available on request.
 
 I built a working IoT data pipeline for my flat, labelled the data myself, and used AI tools to explore what the data could tell me. That exploration confirmed the problem is worth solving and gave me direction. The next step — which I'm working on now — is the analysis I can actually own and explain.
 
-**High accuracy can be misleading on imbalanced data.** Idle events make up ~90% of the dataset. A model that always predicted idle would be 90% accurate and completely useless. Macro F1 and per-class recall tell a more honest story.
