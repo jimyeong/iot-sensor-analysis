@@ -164,4 +164,4 @@ iot-sensor-analysis/
 
 ## License
 
-[choose what you want — MIT is standard for portfolio repos]
+MIT
