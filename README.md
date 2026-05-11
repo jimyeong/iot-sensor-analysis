@@ -141,7 +141,7 @@ iot-sensor-analysis/
 ├── README.md
 ├── mould-risk-analysis.ipynb    (this analysis)
 ├── data/
-│   └── sample_bathroom_data.csv
+│   └── bathroom.csv
 └── images/
     ├── ceiling_mould.jpeg
     ├── honeywell_fan.jpeg
