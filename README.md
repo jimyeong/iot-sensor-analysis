@@ -1,135 +1,104 @@
-# IoT Sensor Analysis
- 
-Methodological foundation for the [Lidless Platform](https://github.com/jimyeong/lidless-controller)'s mould-risk prediction layer — defining the problem, evaluating signal quality, and informing the production model design from real home sensor data.
- 
----
- 
-## What this project is
- 
-This repo is the exploration phase that informed how mould-risk is detected in the production Lidless Platform. The goal was not to ship a model, but to answer four questions before committing to a production approach:
- 
-1. How does mould risk manifest in sensor signals in this physical setting?
-2. Which sensor channels carry predictive value, and which are noise?
-3. What is the right prediction target — instantaneous humidity, dew-point spread, recovery time after moisture events?
-4. What modelling approach is honest given the available data volume and labelling cost?
-The notebooks are exploratory by design. The framing, labelling decisions, feature interpretation, and conclusions about what to deploy are mine. The modelling code itself was written with LLM assistance — increasingly standard practice across the field. What distinguishes the work is the surrounding judgement, not the typing of sklearn calls.
+# IoT Sensor Analysis — Why Mould is Returning
 
----
+## The story so far
 
-<p align="center">
-  <img src="images/image1.jpg" width="45%" />
-  <img src="images/image2.jpg" width="45%" />
-</p>
+In February, I lost a towel to mould. That was the trigger to build 
+this monitoring system — a Zigbee humidity sensor in the bathroom 
+feeding into a backend that alerts when conditions stay elevated.
 
-![Bathroom humidity analysis](images/humid_analysis.png) 
-<img width="423" height="435" alt="Screenshot 2026-04-26 at 16 59 08" src="https://github.com/user-attachments/assets/0b309fa6-2c03-467d-aa64-f3d4445f7f85" /> 
+Around the same time, I had a professional clean the bathroom 
+ceiling. The mould was visibly removed.
 
+Three months later, I'm seeing early signs of regrowth — subtle 
+discolouration, the same patterns starting to appear.
 
- 
----
- 
-## Why I built this
- 
-I lost a towel to mould. That was the immediate trigger. The bigger worry was that as a tenant, I had no objective record of humidity conditions in the flat — if a landlord ever pushed mould damage onto me as my responsibility, I'd have nothing to point to. Managing mould "by feel" felt fragile.
- 
-So I started measuring — with the goal of moving from *"I noticed mould has appeared"* to *"the system flagged the conditions before it formed."*
- 
----
- 
-## What I built (hardware + pipeline)
- 
-End-to-end, from sensor to database:
- 
-### Bathroom
-- Sonoff Zigbee temperature/humidity sensor (paired via Zigbee USB dongle on a home Linux server)
-- Zigbee2MQTT configured to forward sensor messages to MQTT
-- PostgreSQL set up locally to store readings; schema and ingestion logic written by me
-### Kitchen
-- ESP32 with GP2Y dust sensor and DHT22 temperature/humidity sensor
-- Firmware adapted from open-source examples; circuit wired on a breadboard and deployed in a waterproof enclosure on the kitchen counter
-### Living room
-- BME680 sensor (temperature, humidity, pressure, gas resistance)
-### Manual labelling
-Over ~7.5 days in the bathroom and ~3 days in the kitchen/living room, I logged events by hand:
-- Showers, ventilation (window open/closed)
-- Cooking, air fryer, microwave usage
-That produced ~3,000 labelled events aligned with sensor timestamps — the labelled dataset the analysis is built on.
- 
-![hardware setup](images/hardware_dev.jpg)
-![kitchen enclosure](images/hardware_kitchen.jpg)
- 
----
- 
-## What the data showed
- 
-Four findings that changed the design direction for the production system:
- 
-**1. Mould-risk windows after showers are longer than expected.**  
-Humidity stays elevated for an extended period after the shower ends. The recovery time matters more than the duration of the shower itself — a 5-minute shower with poor ventilation can produce a longer high-risk window than a 15-minute shower with the window open.
- 
-**2. Ventilation dominates the recovery curve.**  
-Window opening has a much bigger effect on the rate of return to safe humidity than instinct suggests. Without measurement, this would be invisible — humans habituate to ambient humidity and lose the ability to estimate it.
- 
-**3. The "obvious" metric (humidity %) is a lagging signal.**  
-Temperature and dew-point spread respond earlier to moisture events. By the time relative humidity crosses a threshold, the conditions for condensation have often already been present for some time. Predictive features should track the spread, not the level.
- 
-**4. Class imbalance is structural.**  
-Real mould-formation events are rare in any practical labelling window. This forces a deliberate choice between (a) interpretable physical-threshold classification that doesn't need labelled positives, or (b) much longer-term data accumulation before ML training is honest.
- 
----
- 
-## What this informed in the production system
- 
-The findings above shaped concrete design choices across the Lidless Platform:
- 
-- **Recovery-time focus over instantaneous humidity.**  
-  [Lidless Controller](https://github.com/jimyeong/lidless-controller) calculates dew-point spread via the Magnus formula and tracks cumulative time spent near the dew-point threshold, rather than triggering on humidity peaks alone.
-- **Interpretable physical thresholds before ML.**  
-  Given small labelled data and the need to explain risk to non-technical users (housing tenants), v1 deliberately uses physically-grounded thresholds rather than a black-box classifier. ML extensions are scoped for v2, once labelled production data accumulates.
-- **Sensor-grounded NLP surface.**  
-  [Lidless Oracle](https://github.com/jimyeong/lidless-oracle) exposes risk state through Claude API tool use, grounded in actual sensor readings — the chatbot retrieves and explains the data rather than generating speculative advice about mould.
----
- 
-## Production status
- 
-The exploration here is deployed across the Lidless Platform:
- 
-| Layer | Repo | Stack |
-|---|---|---|
-| Sensor ingestion | [OpsCheck](https://github.com/jimyeong/ops-check-service) | Node.js, Fastify, PostgreSQL, MQTT QoS-1, RabbitMQ, outbox pattern |
-| Risk analysis | [Lidless Controller](https://github.com/jimyeong/lidless-controller) | Python, Magnus formula, dew-point analysis |
-| BFF / orchestration | [Lidless Hermes](https://github.com/jimyeong/lidless-hermes) | Node.js, Apollo GraphQL |
-| User-facing chatbot | [Lidless Oracle](https://github.com/jimyeong/lidless-oracle) | React Native, Claude API, multilingual |
- 
----
- 
-## Roadmap — v2 ML layer
- 
-Scoped extensions once labelled production data accumulates beyond the current ~3,000 events:
- 
-- **Recovery-time prediction** — Random Forest baseline on time-to-safe after moisture events; comparison against the v1 physical-threshold baseline as a fairness check (does ML actually beat physics here?).
-- **Drift monitoring** — input-distribution monitoring on sensor channels, with alerting when feature distributions diverge from training-time baselines.
-- **Active labelling via the chatbot** — using Lidless Oracle to surface uncertain cases to the user and capture corrections, building labelled data through deployment rather than upfront.
-- **Retraining cycle** — periodic retraining triggered by accumulated labelled corrections, with held-out evaluation against the previous model.
----
- 
+This notebook is the diagnostic. **Why is it coming back?**
+
+## The hypothesis I started with — and why it was wrong
+
+The original alert system used a simple rule:
+> "If humidity exceeds 60% for sustained periods, warn the user."
+
+It seemed reasonable. Humidity is the obvious metric. But it 
+doesn't reflect the actual physics of mould growth.
+
+Mould germinates when a surface stays at high relative humidity 
+(typically ≥ 80%) for sustained periods. Surface RH isn't directly 
+measured by an air sensor — but it's tightly related to **dew-point 
+spread**: the gap between air temperature and dew point. When that 
+gap closes, the surface is approaching condensation, and surface 
+RH rises sharply.
+
+So the real predictive features aren't:
+- ❌ Air humidity %
+- ❌ Peak humidity values
+
+They are:
+- ✅ Dew-point spread (T − T_dew)
+- ✅ How long the spread stays within the danger zone (≤ 3°C)
+- ✅ Cumulative time per day in that zone
+
+## What I found when I re-analysed a month of data
+
+[Image 2: Gap timeline — green spread line crossing 3°C threshold]
+
+Over the past month, the dew-point spread crossed below the 3°C 
+warning threshold far more often than I had appreciated.
+
+[Image 1: Timeline of high mould risk events]
+- Mould-risk windows (spread < 3°C) per month: dozens of events
+- Average duration of each event: 26.7 minutes  
+- Worst event: 69 minutes sustained
+- Events lasting longer than 30 minutes: 38
+
+[Image 4: Recovery time histogram]
+
+The recovery distribution is bimodal — many events recover quickly 
+(< 10 min) but a substantial group takes 30–50 minutes. This split 
+likely reflects different ventilation conditions, but with only T/RH 
+data I can't separate them.
+
+This is enough exposure for spores to germinate repeatedly. 
+**Cleaning removes existing mould, but it doesn't change the 
+conditions that grew it.** The system was alerting on the wrong 
+thing.
+
+## Why the current system can't fully solve this
+
+Two structural problems:
+
+1. **No extractor fan in the bathroom.**
+   Recovery has to rely on dehumidifier + passive ventilation 
+   (window). The data shows this isn't fast enough — 38 events 
+   per month exceeded 30-minute exposure, despite consistent 
+   dehumidifier use.
+
+2. **One-dimensional sensing.**
+   Air T/RH alone can't separate "why" recovery was slow on a 
+   given event. Was the window closed? Did the dehumidifier run? 
+   Was outside air more humid than inside? Without those 
+   variables, the model can't learn what intervention works.
+
+## Next step — expanding sensor coverage
+
+The next phase adds:
+- **Window contact sensor** (Zigbee) — captures open/closed state
+- **Smart plug on dehumidifier** (Zigbee) — captures runtime + power
+- **Smart plug on circulation fan** (Zigbee) — adds active air 
+  movement as a controlled variable
+- **Surface-proximate T/RH sensor** — closer to the real surface 
+  conditions where mould actually grows
+
+With these, the next analysis can answer: *which combination of 
+interventions actually moves recovery time, and by how much?*
+
+That work continues in the next repo in this series:
+[link to next repo when ready]
+
 ## Repo structure
-```
+
 iot-sensor-analysis/
 ├── README.md
-├── humidity_analysis.ipynb              (LLM-assisted exploration, bathroom)
-├── kitchen_livingroom_analysis.ipynb    (LLM-assisted exploration, kitchen + living room)
+├── humidity_analysis.ipynb   (this analysis)
 ├── data/
-│   ├── sample_bathroom_data.csv
-│   ├── sample_events/data.csv
-│   ├── sample_kitchen_data.csv
-│   └── sample_livingroom_data.csv
 └── images/
-    ├── hardware_dev.jpg
-    ├── hardware_kitchen.jpg
-    └── ...
-```
-
-
-
-
