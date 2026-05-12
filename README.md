@@ -5,7 +5,7 @@ investigating why mould began returning three months after
 professional cleaning despite an active monitoring system.
 
 This is the methodological foundation for the 
-[Lidless Platform](https://github.com/jimyeong/lidless-oracle)'s 
+[Lidless Platform](https://github.com/jimyeong/lidless-controller)'s 
 mould-risk prediction layer.
 
 ---
